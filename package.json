@@ -1,0 +1,23 @@
+{
+  "name": "anon",
+  "version": "1.0.0",
+  "description": "Anon fullstack app",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix client",
+    "start": "npm run start --prefix server"
+  },
+  "keywords": [
+    "anon",
+    "react",
+    "node",
+    "mongodb"
+  ],
+  "author": "Tosh Developers",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  }
+}
