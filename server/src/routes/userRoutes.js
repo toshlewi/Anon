@@ -1,13 +1,11 @@
 import express from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 import User from "../models/User.js";
 import { requireAuth } from "../middleware/auth.js";
+import { getUploadsDir } from "../utils/uploadsDir.js";
 
 const router = express.Router();
-const uploadsDir = path.resolve("server/uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+const uploadsDir = getUploadsDir();
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),

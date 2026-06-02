@@ -12,23 +12,46 @@ import messageRoutes from "./routes/messageRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import cardRoutes from "./routes/cardRoutes.js";
+import { getUploadsDir } from "./utils/uploadsDir.js";
 
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const projectRoot = path.resolve(__dirname, "../../");
+const projectRoot = process.env.VERCEL ? process.cwd() : path.resolve(__dirname, "../../");
 
-app.use(helmet());
+const corsOrigins = [
+  process.env.CLIENT_URL,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  process.env.VERCEL_BRANCH_URL,
+  "http://localhost:5173",
+].filter(Boolean);
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
 app.use(compression());
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (corsOrigins.includes(origin)) return callback(null, true);
+      try {
+        const host = new URL(origin).hostname;
+        if (host.endsWith(".vercel.app")) return callback(null, true);
+      } catch {
+        /* ignore invalid origin */
+      }
+      if (process.env.NODE_ENV !== "production") return callback(null, true);
+      return callback(null, corsOrigins[0] || true);
+    },
     credentials: true,
   }),
 );
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
-app.use(morgan("dev"));
+app.use(morgan(process.env.VERCEL ? "combined" : "dev"));
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -44,12 +67,12 @@ app.use(
 );
 app.use(
   "/uploads",
-  express.static(path.join(projectRoot, "server/uploads"), {
+  express.static(getUploadsDir(), {
     maxAge: "7d",
   }),
 );
 
-app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+app.get("/api/health", (_req, res) => res.json({ status: "ok", env: process.env.VERCEL ? "vercel" : "node" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);
