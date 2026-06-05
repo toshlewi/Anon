@@ -74,21 +74,27 @@ app.use(
 );
 
 app.get("/api/health", async (_req, res) => {
+  const states = ["disconnected", "connected", "connecting", "disconnecting"];
   const dbReady = mongoose.connection.readyState === 1;
   let dbPing = false;
+  let dbError = null;
+
   if (dbReady) {
     try {
       await mongoose.connection.db.admin().ping();
       dbPing = true;
-    } catch {
-      dbPing = false;
+    } catch (error) {
+      dbError = error.message;
     }
   }
+
   res.json({
     status: dbPing ? "ok" : "degraded",
     env: process.env.VERCEL ? "vercel" : "node",
     database: dbPing ? "connected" : "disconnected",
-    mongoConfigured: Boolean(process.env.MONGO_URI),
+    mongoConfigured: Boolean((process.env.MONGO_URI || "").trim()),
+    mongoState: states[mongoose.connection.readyState] || "unknown",
+    ...(dbError ? { dbError } : {}),
   });
 });
 app.use("/api/auth", authRoutes);

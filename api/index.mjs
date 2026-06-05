@@ -1,20 +1,15 @@
-import "dotenv/config";
 import mongoose from "mongoose";
 
 mongoose.set("bufferCommands", false);
 
 const { default: app } = await import("../server/src/app.js");
 
-const MONGO_URI = process.env.MONGO_URI;
-
-if (!MONGO_URI) {
-  console.error("MONGO_URI is not set. Add it in Vercel → Settings → Environment Variables.");
-}
+const getMongoUri = () => (process.env.MONGO_URI || "").trim();
 
 const globalCache = globalThis;
 
 if (!globalCache.__anonMongoose) {
-  globalCache.__anonMongoose = { conn: null, promise: null };
+  globalCache.__anonMongoose = { promise: null };
 }
 
 const cache = globalCache.__anonMongoose;
@@ -23,13 +18,13 @@ const mongooseOptions = {
   bufferCommands: false,
   maxPoolSize: 1,
   minPoolSize: 0,
-  serverSelectionTimeoutMS: 15000,
+  serverSelectionTimeoutMS: 20000,
   socketTimeoutMS: 45000,
-  family: 4,
 };
 
 async function connectDatabase() {
-  if (!MONGO_URI) {
+  const uri = getMongoUri();
+  if (!uri) {
     throw new Error("MONGO_URI environment variable is required");
   }
 
@@ -37,25 +32,21 @@ async function connectDatabase() {
     return mongoose.connection;
   }
 
-  if (cache.conn && mongoose.connection.readyState === 1) {
-    return cache.conn;
-  }
-
   if (!cache.promise) {
-    cache.promise = mongoose.connect(MONGO_URI, mongooseOptions).then((instance) => {
-      cache.conn = instance.connection || mongoose.connection;
-      return cache.conn;
+    cache.promise = mongoose.connect(uri, mongooseOptions).catch((error) => {
+      cache.promise = null;
+      throw error;
     });
   }
 
-  try {
-    cache.conn = await cache.promise;
-    return cache.conn;
-  } catch (error) {
+  await cache.promise;
+
+  if (mongoose.connection.readyState !== 1) {
     cache.promise = null;
-    cache.conn = null;
-    throw error;
+    throw new Error(`MongoDB not connected (readyState ${mongoose.connection.readyState})`);
   }
+
+  return mongoose.connection;
 }
 
 export default async function handler(req, res) {
@@ -66,8 +57,10 @@ export default async function handler(req, res) {
     console.error("API handler error:", error);
     if (!res.headersSent) {
       res.status(500).json({
-        message: "Database connection failed. Set MONGO_URI in Vercel and allow 0.0.0.0/0 in MongoDB Atlas Network Access.",
+        message:
+          "Database connection failed. In MongoDB Atlas: Network Access → Allow 0.0.0.0/0, then verify MONGO_URI in Vercel.",
         error: error.message,
+        hint: "Open /api/health after redeploy to confirm database shows connected.",
       });
     }
   }

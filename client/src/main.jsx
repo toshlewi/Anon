@@ -4,16 +4,24 @@ import { BrowserRouter } from "react-router-dom";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
+import { getGoogleClientId, isGoogleAuthEnabled } from "./utils/googleAuth";
 import "./styles.css";
+
+function RootProviders({ children }) {
+  if (isGoogleAuthEnabled()) {
+    return <GoogleOAuthProvider clientId={getGoogleClientId()}>{children}</GoogleOAuthProvider>;
+  }
+  return children;
+}
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || "google-client-id"}>
+    <RootProviders>
       <BrowserRouter>
         <AuthProvider>
           <App />
         </AuthProvider>
       </BrowserRouter>
-    </GoogleOAuthProvider>
+    </RootProviders>
   </React.StrictMode>,
 );

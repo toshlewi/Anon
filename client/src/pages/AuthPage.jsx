@@ -5,6 +5,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Logo from "../components/Logo";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import { isGoogleAuthEnabled } from "../utils/googleAuth";
 
 export default function AuthPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -34,7 +35,13 @@ export default function AuthPage() {
       setSession(data.token, data.user);
       navigate("/dashboard");
     } catch (err) {
-      setError(err?.response?.data?.message || "Authentication failed. Please try again.");
+      const apiMsg = err?.response?.data?.message;
+      const apiDetail = err?.response?.data?.error;
+      setError(
+        apiDetail
+          ? `${apiMsg || "Authentication failed"}. (${apiDetail})`
+          : apiMsg || "Authentication failed. Please try again.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -165,33 +172,37 @@ export default function AuthPage() {
               </button>
             </form>
 
-            <div className="my-5 flex items-center gap-3">
-              <span className="h-px flex-1 bg-rose/25" />
-              <span className="text-xs uppercase tracking-wider text-inkLight">or</span>
-              <span className="h-px flex-1 bg-rose/25" />
-            </div>
+            {isGoogleAuthEnabled() ? (
+              <>
+                <div className="my-5 flex items-center gap-3">
+                  <span className="h-px flex-1 bg-rose/25" />
+                  <span className="text-xs uppercase tracking-wider text-inkLight">or</span>
+                  <span className="h-px flex-1 bg-rose/25" />
+                </div>
 
-            <div className="flex justify-center">
-              <GoogleLogin
-                onSuccess={async (credentialResponse) => {
-                  try {
-                    const token = credentialResponse.credential;
-                    const decoded = jwtDecode(token);
-                    const { data } = await api.post("/auth/google", {
-                      email: decoded.email,
-                      name: decoded.name,
-                      googleId: decoded.sub,
-                      photo: decoded.picture,
-                    });
-                    setSession(data.token, data.user);
-                    navigate("/dashboard");
-                  } catch {
-                    setError("Google sign-in failed. Try email login.");
-                  }
-                }}
-                onError={() => setError("Google sign-in was cancelled.")}
-              />
-            </div>
+                <div className="flex justify-center">
+                  <GoogleLogin
+                    onSuccess={async (credentialResponse) => {
+                      try {
+                        const token = credentialResponse.credential;
+                        const decoded = jwtDecode(token);
+                        const { data } = await api.post("/auth/google", {
+                          email: decoded.email,
+                          name: decoded.name,
+                          googleId: decoded.sub,
+                          photo: decoded.picture,
+                        });
+                        setSession(data.token, data.user);
+                        navigate("/dashboard");
+                      } catch {
+                        setError("Google sign-in failed. Try email login.");
+                      }
+                    }}
+                    onError={() => setError("Google sign-in was cancelled.")}
+                  />
+                </div>
+              </>
+            ) : null}
 
             <p className="mt-5 text-center text-sm text-inkLight">
               {isRegister ? "Already have an account?" : "Need a new account?"}{" "}
