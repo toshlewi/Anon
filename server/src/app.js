@@ -12,6 +12,7 @@ import messageRoutes from "./routes/messageRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import cardRoutes from "./routes/cardRoutes.js";
+import mongoose from "mongoose";
 import { getUploadsDir } from "./utils/uploadsDir.js";
 
 const app = express();
@@ -72,7 +73,24 @@ app.use(
   }),
 );
 
-app.get("/api/health", (_req, res) => res.json({ status: "ok", env: process.env.VERCEL ? "vercel" : "node" }));
+app.get("/api/health", async (_req, res) => {
+  const dbReady = mongoose.connection.readyState === 1;
+  let dbPing = false;
+  if (dbReady) {
+    try {
+      await mongoose.connection.db.admin().ping();
+      dbPing = true;
+    } catch {
+      dbPing = false;
+    }
+  }
+  res.json({
+    status: dbPing ? "ok" : "degraded",
+    env: process.env.VERCEL ? "vercel" : "node",
+    database: dbPing ? "connected" : "disconnected",
+    mongoConfigured: Boolean(process.env.MONGO_URI),
+  });
+});
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);

@@ -34,7 +34,7 @@ Push to GitHub, then in [Vercel](https://vercel.com) → **Add New Project** →
 |----------|---------|----------|
 | `MONGO_URI` | `mongodb+srv://...` | Yes |
 | `JWT_SECRET` | long random string | Yes |
-| `CLIENT_URL` | `https://your-app.vercel.app` | Yes (your production URL) |
+| `CLIENT_URL` | `https://anon-seven-eta.vercel.app` | Yes (your exact Vercel URL) |
 | `ADMIN_EMAILS` | `you@gmail.com` | For admin ads panel |
 | `FIRST_USER_AUTO_ADMIN` | `true` | Optional |
 | `VITE_GOOGLE_CLIENT_ID` | Google OAuth client ID | Optional |
@@ -43,10 +43,15 @@ Push to GitHub, then in [Vercel](https://vercel.com) → **Add New Project** →
 
 After deploy, set `CLIENT_URL` to your real Vercel URL (or custom domain) and **redeploy**.
 
-### 3. MongoDB Atlas
+### 3. MongoDB Atlas (important)
 
-- Network Access → allow `0.0.0.0/0` (or Vercel IPs)
-- Use a user/password; URL-encode special characters in `MONGO_URI` (e.g. `#` → `%23`)
+**Whitelisting “devices” in Atlas only controls which servers can reach MongoDB — not phones or laptops using your site.** Browsers talk to Vercel; Vercel talks to MongoDB.
+
+1. **Network Access** → Add IP Address → **Allow Access from Anywhere** (`0.0.0.0/0`)
+2. Copy the **same** `MONGO_URI` from `server/.env` into Vercel env vars (URL-encode `#` as `%23` in passwords)
+3. After saving env vars, **Redeploy** the Vercel project
+
+Check: `https://anon-seven-eta.vercel.app/api/health` should show `"database":"connected"`. If it says `disconnected`, login will fail on all devices.
 
 ### 4. Health check
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm install --prefix client && npm install --prefix server && npm install --prefix api",
-  "buildCommand": "npm run build --prefix client",
+  "buildCommand": "VITE_API_URL=/api VITE_SERVER_URL= npm run build --prefix client",
   "outputDirectory": "client/dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },

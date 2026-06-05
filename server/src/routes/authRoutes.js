@@ -49,40 +49,50 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-  const { identifier, password } = req.body;
-  if (!identifier || !password) return res.status(400).json({ message: "Identifier and password are required." });
-  const user = await User.findOne({
-    $or: [{ email: identifier?.toLowerCase() }, { username: identifier?.toLowerCase() }],
-  });
-  if (!user || !user.passwordHash) return res.status(401).json({ message: "Invalid credentials" });
+  try {
+    const { identifier, password } = req.body;
+    if (!identifier || !password) {
+      return res.status(400).json({ message: "Identifier and password are required." });
+    }
+    const user = await User.findOne({
+      $or: [{ email: identifier?.toLowerCase() }, { username: identifier?.toLowerCase() }],
+    });
+    if (!user || !user.passwordHash) return res.status(401).json({ message: "Invalid credentials" });
 
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) return res.status(401).json({ message: "Invalid credentials" });
-  await syncAdminRole(user);
-  const safeUser = await User.findById(user._id).select("-passwordHash");
-  return res.json({ token: signToken(safeUser), user: safeUser });
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) return res.status(401).json({ message: "Invalid credentials" });
+    await syncAdminRole(user);
+    const safeUser = await User.findById(user._id).select("-passwordHash");
+    return res.json({ token: signToken(safeUser), user: safeUser });
+  } catch (error) {
+    return res.status(500).json({ message: "Could not log in", error: error.message });
+  }
 });
 
 router.post("/google", async (req, res) => {
-  const { email, name, googleId, photo } = req.body;
-  if (!email || !googleId) return res.status(400).json({ message: "Invalid Google payload" });
+  try {
+    const { email, name, googleId, photo } = req.body;
+    if (!email || !googleId) return res.status(400).json({ message: "Invalid Google payload" });
 
-  let user = await User.findOne({ email: email.toLowerCase() });
-  if (!user) {
-    const safeName = (name || email.split("@")[0]).trim();
-    const seed = Math.floor(Math.random() * 9999);
-    user = await User.create({
-      name: safeName,
-      username: `${safeName.replace(/\s+/g, "").toLowerCase()}${seed}`,
-      email: email.toLowerCase(),
-      googleId,
-      profilePhoto: photo || "",
-    });
-    await ensureDefaultCardsForUser(user);
+    let user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      const safeName = (name || email.split("@")[0]).trim();
+      const seed = Math.floor(Math.random() * 9999);
+      user = await User.create({
+        name: safeName,
+        username: `${safeName.replace(/\s+/g, "").toLowerCase()}${seed}`,
+        email: email.toLowerCase(),
+        googleId,
+        profilePhoto: photo || "",
+      });
+      await ensureDefaultCardsForUser(user);
+    }
+    await syncAdminRole(user);
+    const safeUser = await User.findById(user._id).select("-passwordHash");
+    return res.json({ token: signToken(safeUser), user: safeUser });
+  } catch (error) {
+    return res.status(500).json({ message: "Could not sign in with Google", error: error.message });
   }
-  await syncAdminRole(user);
-  const safeUser = await User.findById(user._id).select("-passwordHash");
-  return res.json({ token: signToken(safeUser), user: safeUser });
 });
 
 router.get("/me", requireAuth, async (req, res) => {
