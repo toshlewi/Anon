@@ -2,6 +2,9 @@
 
 Anonymous messaging platform by **Tosh Developers** — React, Express, MongoDB.
 
+Live Project 
+https://anon-seven-eta.vercel.app/
+
 ## Run locally
 
 1. Copy `server/.env.example` → `server/.env` (set `MONGO_URI`, `JWT_SECRET`)
@@ -16,50 +19,51 @@ npm run dev
 - Frontend: http://localhost:5173  
 - API: http://localhost:5000/api  
 
+## Security
+
+- **Usernames** and **emails** are unique (checked in the API and enforced by MongoDB indexes)
+- Passwords must be **8+ characters** with at least one letter and one number
+- Registration requires **password confirmation**
+- Auth and anonymous messaging are **rate-limited**
+- Profile uploads are **images only** (max 5 MB)
+- Set a strong `JWT_SECRET` in production — the server refuses weak defaults on Vercel
+
 ## Deploy on Vercel
 
 This repo is configured for **one Vercel project** (frontend + API).
 
-### 1. Import from GitHub
+### Quick deploy (CLI)
 
-Push to GitHub, then in [Vercel](https://vercel.com) → **Add New Project** → import `toshlewi/Anon`.
+```bash
+./scripts/deploy-vercel.sh
+```
 
-- **Framework Preset:** Other (or Vite — `vercel.json` controls the build)
-- **Root Directory:** leave as repository root (`.`)
-- Do **not** set root to `client` only — the API lives in `/api`
+Ensure `server/.env` has production values before running. The script syncs env vars and deploys.
 
-### 2. Environment variables (Vercel → Settings → Environment Variables)
+### Environment variables (Vercel → Settings → Environment Variables)
 
 | Variable | Example | Required |
 |----------|---------|----------|
 | `MONGO_URI` | `mongodb+srv://...` | Yes |
-| `JWT_SECRET` | long random string | Yes |
-| `CLIENT_URL` | `https://anon-seven-eta.vercel.app` | Yes (your exact Vercel URL) |
+| `JWT_SECRET` | long random string (32+ chars) | Yes |
+| `CLIENT_URL` | `https://anon-seven-eta.vercel.app` | Yes |
 | `ADMIN_EMAILS` | `you@gmail.com` | For admin ads panel |
-| `FIRST_USER_AUTO_ADMIN` | `true` | Optional |
-| `VITE_GOOGLE_CLIENT_ID` | Google OAuth client ID | Optional |
+| `FIRST_USER_AUTO_ADMIN` | `false` | Use `false` in production |
+| `VITE_API_URL` | `/api` | Set by deploy script |
 
 `client/.env.production` already sets `VITE_API_URL=/api` for same-origin API on Vercel.
 
-After deploy, set `CLIENT_URL` to your real Vercel URL (or custom domain) and **redeploy**.
+### MongoDB Atlas
 
-### 3. MongoDB Atlas (important)
+1. **Network Access** → **Allow Access from Anywhere** (`0.0.0.0/0`)
+2. Copy `MONGO_URI` into Vercel env vars (quote values containing `&`)
+3. **Redeploy** after saving env vars
 
-**Whitelisting “devices” in Atlas only controls which servers can reach MongoDB — not phones or laptops using your site.** Browsers talk to Vercel; Vercel talks to MongoDB.
+Check: `https://your-app.vercel.app/api/health` should show `"database":"connected"`.
 
-1. **Network Access** → Add IP Address → **Allow Access from Anywhere** (`0.0.0.0/0`)
-2. Copy the **same** `MONGO_URI` from `server/.env` into Vercel env vars (URL-encode `#` as `%23` in passwords)
-3. After saving env vars, **Redeploy** the Vercel project
+### Ad uploads on Vercel
 
-Check: `https://anon-seven-eta.vercel.app/api/health` should show `"database":"connected"`. If it says `disconnected`, login will fail on all devices.
-
-### 4. Health check
-
-Visit `https://your-app.vercel.app/api/health` — should return `{"status":"ok","env":"vercel"}`.
-
-### 5. Ad uploads on Vercel
-
-Serverless `/tmp` storage is **temporary**. For persistent ad images/videos in production, use **image/video URLs** in the admin panel or add Cloudinary later.
+Serverless `/tmp` storage is **temporary**. For persistent ad images in production, use **image URLs** in the admin panel or add Cloudinary later.
 
 ## Project layout
 

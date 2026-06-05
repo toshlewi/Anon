@@ -5,10 +5,23 @@
 body {
   margin: 0;
   background: #f8ede3;
+  -webkit-font-smoothing: antialiased;
 }
 
 .input {
-  @apply w-full rounded-xl border border-rose/30 bg-white px-4 py-2 outline-none focus:ring-2 focus:ring-rose/40;
+  @apply w-full rounded-xl border border-roseSoft/40 bg-white px-4 py-2.5 text-base outline-none focus:border-rose/50 focus:ring-2 focus:ring-rose/30;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-full bg-rose px-6 py-3 font-semibold text-white shadow-glow transition hover:bg-roseDark active:scale-[0.98] disabled:opacity-60;
+}
+
+.btn-primary-sm {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-full bg-rose px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-roseDark active:scale-[0.98];
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 rounded-full border border-roseSoft/50 bg-white/90 px-6 py-3 font-medium text-ink shadow-sm transition hover:border-rose/40 hover:shadow-md active:scale-[0.98];
 }
 
 @keyframes floatSoft {
@@ -24,11 +37,26 @@ body {
 @keyframes pulseGlow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(239, 167, 198, 0.2);
+    box-shadow: 0 0 0 0 rgba(217, 101, 150, 0.25);
   }
   50% {
-    box-shadow: 0 0 0 12px rgba(239, 167, 198, 0);
+    box-shadow: 0 0 0 12px rgba(217, 101, 150, 0);
   }
+}
+
+@keyframes successPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.88) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.success-pop {
+  animation: successPop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .float-soft {
@@ -180,12 +208,46 @@ body {
   animation: floatSoft 5s ease-in-out infinite;
 }
 
-@keyframes adMarqueeScroll {
+/* Ad carousel — new sponsor slides in from the right */
+@keyframes adCarouselSlideLTR {
   0% {
-    transform: translateX(0);
+    opacity: 0;
+    transform: translateX(100%);
   }
   100% {
-    transform: translateX(-50%);
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes marqueeShine {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes marqueeSparkle {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes sendAdFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
   }
 }
 
@@ -200,16 +262,26 @@ body {
   }
 }
 
-.ad-marquee-mask {
-  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+.ad-carousel-slide {
+  position: absolute;
+  inset: 0;
+  animation: adCarouselSlideLTR 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.ad-marquee-track {
-  animation: adMarqueeScroll linear infinite;
+.ad-marquee-shell {
+  box-shadow: 0 -8px 32px rgba(184, 72, 114, 0.08);
 }
 
-.ad-marquee-track:hover {
-  animation-play-state: paused;
+.ad-marquee-sparkle {
+  animation: marqueeSparkle 2.4s ease-in-out infinite;
+}
+
+.ad-marquee-sparkle-delay {
+  animation-delay: 1.2s;
+}
+
+.send-ad-float {
+  animation: sendAdFloat 4s ease-in-out infinite;
 }
 
 .ad-popup-slide {
@@ -217,10 +289,12 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ad-marquee-track {
+  .ad-carousel-slide,
+  .ad-marquee-sparkle {
     animation: none;
   }
-  .ad-popup-slide {
+  .ad-popup-slide,
+  .send-ad-float {
     animation: none;
   }
 }

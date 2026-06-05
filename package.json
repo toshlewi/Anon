@@ -7,12 +7,14 @@
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "build": "npm run build --prefix client",
     "vercel-build": "npm run build --prefix client",
+    "deploy": "vercel deploy --prod --yes",
     "start": "npm run start --prefix server"
   },
   "keywords": ["anon", "react", "node", "mongodb"],
   "author": "Tosh Developers",
   "license": "ISC",
   "devDependencies": {
-    "concurrently": "^10.0.3"
+    "concurrently": "^10.0.3",
+    "vercel": "^54.9.1"
   }
 }

@@ -1,12 +1,13 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { getJwtSecret } from "../utils/jwt.js";
 
 export const requireAuth = (req, res, next) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   if (!token) return res.status(401).json({ message: "Unauthorized" });
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "dev_secret");
+    const decoded = jwt.verify(token, getJwtSecret());
     req.user = decoded;
     next();
   } catch (_err) {

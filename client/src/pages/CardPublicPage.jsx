@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import Logo from "../components/Logo";
-import SendPageAdPopup from "../components/SendPageAdPopup";
+import AdMarquee from "../components/AdMarquee";
+import SuccessToast from "../components/SuccessToast";
 import { useAds } from "../hooks/useAds";
 import api from "../services/api";
 import { resolveCardImage } from "../utils/cardIllustration";
@@ -11,7 +12,10 @@ export default function CardPublicPage() {
   const [card, setCard] = useState(null);
   const [text, setText] = useState("");
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
   const { ads: sendAds } = useAds({ slot: "send" });
+
+  const closeSuccess = useCallback(() => setSent(false), []);
 
   useEffect(() => {
     api.get(`/cards/link/${linkKey}`).then(({ data }) => setCard(data));
@@ -19,33 +23,49 @@ export default function CardPublicPage() {
 
   const submit = async (e) => {
     e.preventDefault();
-    await api.post(`/cards/link/${linkKey}/messages`, { text });
-    setText("");
-    setSent(true);
-    setTimeout(() => setSent(false), 1800);
+    setSending(true);
+    try {
+      await api.post(`/cards/link/${linkKey}/messages`, { text });
+      setText("");
+      setSent(true);
+    } catch {
+      /* keep form text on error */
+    } finally {
+      setSending(false);
+    }
   };
 
   if (!card) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-16 flex flex-col items-center">
+      <main className="mx-auto flex max-w-2xl flex-col items-center px-4 py-16">
         <Logo size="xl" animation="bounce-spin" />
         <p className="mt-4 text-inkLight">Opening your link…</p>
       </main>
     );
   }
 
-  return (
-    <main className="relative mx-auto max-w-2xl px-4 py-8 pb-28 sm:py-12 sm:pb-32">
-      <SendPageAdPopup ads={sendAds} />
+  const hasAds = sendAds.length > 0;
 
-      <section className="rounded-2xl p-5 sm:p-6 shadow-md border border-white/70" style={{ backgroundColor: card.color }}>
+  return (
+    <main className="relative mx-auto max-w-2xl px-4 py-8 pb-24 sm:py-12">
+      <SuccessToast
+        open={sent}
+        onClose={closeSuccess}
+        title="Successfully sent!"
+        message="Your identity stays hidden. The card owner will see your anonymous reply."
+      />
+
+      <section
+        className="rounded-2xl border border-white/70 p-5 shadow-md sm:p-6"
+        style={{ backgroundColor: card.color }}
+      >
         <img
           src={resolveCardImage(card)}
           alt={`${card.title} artwork`}
-          className="h-36 sm:h-40 w-full rounded-xl object-cover border border-white/40"
+          className="h-36 w-full rounded-xl border border-white/40 object-cover sm:h-40"
         />
         <p className="text-2xl">{card.icon}</p>
-        <h1 className="mt-2 text-2xl sm:text-3xl font-bold" style={{ color: card.textColor || "#fff" }}>
+        <h1 className="mt-2 text-2xl font-bold sm:text-3xl" style={{ color: card.textColor || "#fff" }}>
           {card.title}
         </h1>
         <p className="mt-2 text-sm" style={{ color: card.textColor || "#fff" }}>
@@ -59,22 +79,32 @@ export default function CardPublicPage() {
         </p>
       </section>
 
-      <form onSubmit={submit} className="mt-5 sm:mt-6 space-y-3">
+      <form onSubmit={submit} className="relative z-10 mt-5 space-y-3 sm:mt-6">
         <textarea
-          className="input min-h-36 sm:min-h-40 text-base"
+          className="input min-h-36 resize-y text-base sm:min-h-40"
           placeholder="Write your anonymous answer..."
           value={text}
           onChange={(e) => setText(e.target.value)}
           required
         />
-        <button
-          type="submit"
-          className="w-full sm:w-auto rounded-full bg-ink px-6 py-3 text-white text-base font-medium active:scale-[0.98] transition"
-        >
-          Send anonymously
+        <button type="submit" disabled={sending} className="btn-primary w-full sm:w-auto disabled:opacity-70">
+          {sending ? "Sending…" : "Send anonymously"}
         </button>
-        {sent && <p className="text-sm text-green-700">Sent. Your identity stays hidden.</p>}
       </form>
+
+      <section className="mb-4 mt-10 rounded-2xl border border-rose/25 bg-white/90 p-5 text-center shadow-sm">
+        <p className="text-sm text-inkLight">Want to receive anonymous messages too?</p>
+        <Link to="/auth?mode=register" className="btn-primary mt-3 w-full text-sm sm:w-auto">
+          Create your own question cards →
+        </Link>
+        <p className="mt-2 text-xs text-inkLight">Free to join · Share links · Get honest anonymous replies</p>
+      </section>
+
+      {hasAds && (
+        <div className="mt-8">
+          <AdMarquee ads={sendAds} compact />
+        </div>
+      )}
     </main>
   );
 }

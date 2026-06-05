@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import { validateUsername } from "../utils/validation";
 
 export default function ProfilePage() {
   const { user, setSession } = useAuth();
@@ -11,14 +12,28 @@ export default function ProfilePage() {
   });
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
 
   const saveProfile = async (e) => {
     e.preventDefault();
-    const { data } = await api.patch("/users/me", form);
-    const token = localStorage.getItem("anon_token");
-    setSession(token, data);
-    setStatus("Profile updated.");
-    setTimeout(() => setStatus(""), 1600);
+    setError("");
+    const usernameError = validateUsername(form.username);
+    if (usernameError) {
+      setError(usernameError);
+      return;
+    }
+    try {
+      const { data } = await api.patch("/users/me", {
+        ...form,
+        username: form.username.trim().toLowerCase(),
+      });
+      const token = localStorage.getItem("anon_token");
+      setSession(token, data);
+      setStatus("Profile updated.");
+      setTimeout(() => setStatus(""), 1600);
+    } catch (err) {
+      setError(err?.response?.data?.message || "Could not update profile.");
+    }
   };
 
   const uploadPhoto = async (e) => {
@@ -53,10 +68,19 @@ export default function ProfilePage() {
         </div>
 
         <form onSubmit={saveProfile} className="mt-5 grid gap-3">
-          <input className="input" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input className="input" placeholder="Username" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-          <textarea className="input min-h-32" placeholder="Short bio" value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
-          <button className="rounded-full bg-rose px-5 py-2 text-white w-fit">Save profile</button>
+          <input className="input" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={80} />
+          <input
+            className="input"
+            placeholder="Username"
+            value={form.username}
+            onChange={(e) => setForm({ ...form, username: e.target.value })}
+            minLength={3}
+            maxLength={20}
+            pattern="[a-zA-Z0-9_]{3,20}"
+          />
+          <textarea className="input min-h-32" placeholder="Short bio" value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} maxLength={500} />
+          <button className="btn-primary w-fit">Save profile</button>
+          {error && <p className="text-sm text-red-700">{error}</p>}
           {status && <p className="text-sm text-green-700">{status}</p>}
         </form>
       </section>

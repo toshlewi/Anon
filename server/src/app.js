@@ -12,7 +12,7 @@ import messageRoutes from "./routes/messageRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import cardRoutes from "./routes/cardRoutes.js";
-import mongoose from "mongoose";
+import { dbConnect, dbPing, getMongoUri } from "./db.js";
 import { getUploadsDir } from "./utils/uploadsDir.js";
 
 const app = express();
@@ -20,9 +20,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = process.env.VERCEL ? process.cwd() : path.resolve(__dirname, "../../");
 
+const productionUrl = process.env.CLIENT_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
+
 const corsOrigins = [
-  process.env.CLIENT_URL,
-  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  productionUrl,
+  "https://anon-seven-eta.vercel.app",
   process.env.VERCEL_BRANCH_URL,
   "http://localhost:5173",
 ].filter(Boolean);
@@ -74,33 +76,53 @@ app.use(
 );
 
 app.get("/api/health", async (_req, res) => {
-  const states = ["disconnected", "connected", "connecting", "disconnecting"];
-  const dbReady = mongoose.connection.readyState === 1;
-  let dbPing = false;
-  let dbError = null;
-
-  if (dbReady) {
-    try {
-      await mongoose.connection.db.admin().ping();
-      dbPing = true;
-    } catch (error) {
-      dbError = error.message;
-    }
+  const isProd = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+  try {
+    await dbPing();
+    res.json(
+      isProd
+        ? { status: "ok", database: "connected" }
+        : {
+            status: "ok",
+            env: process.env.VERCEL ? "vercel" : "node",
+            database: "connected",
+            mongoConfigured: Boolean(getMongoUri()),
+            url: productionUrl || null,
+          },
+    );
+  } catch (error) {
+    res.status(503).json(
+      isProd
+        ? { status: "degraded", database: "disconnected" }
+        : {
+            status: "degraded",
+            env: process.env.VERCEL ? "vercel" : "node",
+            database: "disconnected",
+            mongoConfigured: Boolean(getMongoUri()),
+            error: error.message,
+            url: productionUrl || null,
+          },
+    );
   }
-
-  res.json({
-    status: dbPing ? "ok" : "degraded",
-    env: process.env.VERCEL ? "vercel" : "node",
-    database: dbPing ? "connected" : "disconnected",
-    mongoConfigured: Boolean((process.env.MONGO_URI || "").trim()),
-    mongoState: states[mongoose.connection.readyState] || "unknown",
-    ...(dbError ? { dbError } : {}),
-  });
 });
-app.use("/api/auth", authRoutes);
-app.use("/api/messages", messageRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/cards", cardRoutes);
+
+const requireDb = async (_req, res, next) => {
+  try {
+    await dbConnect();
+    next();
+  } catch (error) {
+    res.status(503).json({
+      message: "Database unavailable",
+      error: error.message,
+      mongoConfigured: Boolean(getMongoUri()),
+    });
+  }
+};
+
+app.use("/api/auth", requireDb, authRoutes);
+app.use("/api/messages", requireDb, messageRoutes);
+app.use("/api/users", requireDb, userRoutes);
+app.use("/api/admin", requireDb, adminRoutes);
+app.use("/api/cards", requireDb, cardRoutes);
 
 export default app;

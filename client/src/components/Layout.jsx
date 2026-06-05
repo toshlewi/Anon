@@ -42,7 +42,7 @@ const Header = () => {
                 <FiUser /> Profile
               </Link>
               {user.role === "admin" && <Link to="/admin" className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 hover:bg-rose/15 transition">Admin</Link>}
-              <button onClick={logout} className="rounded-full bg-rose px-4 py-1.5 text-white inline-flex items-center gap-1 transition hover:scale-[1.03]">
+              <button onClick={logout} className="btn-primary-sm">
                 <FiLogOut /> Logout
               </button>
             </>
@@ -51,10 +51,7 @@ const Header = () => {
               <Link to="/auth?mode=register" className="rounded-full bg-white/80 px-4 py-1.5 border border-rose/40 transition hover:shadow-sm">
                 Create Account
               </Link>
-              <Link
-                to="/auth"
-                className="rounded-full bg-rose px-4 py-1.5 text-white inline-flex items-center gap-2 transition hover:scale-[1.03] pulse-glow"
-              >
+              <Link to="/auth" className="btn-primary-sm pulse-glow">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
                   <path d="M10 17l5-5-5-5" />

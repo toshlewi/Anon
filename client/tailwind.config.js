@@ -5,8 +5,9 @@ export default {
     extend: {
       colors: {
         blush: "#FFDCCF",
-        rose: "#F3A6C9",
-        roseDark: "#E98BB7",
+        rose: "#D96596",
+        roseDark: "#B84872",
+        roseSoft: "#F3A6C9",
         beige: "#F9F0E8",
         cream: "#FFF8F3",
         skywarm: "#FFBFA3",
@@ -17,6 +18,9 @@ export default {
         body: ["Plus Jakarta Sans", "sans-serif"],
         title: ["Plus Jakarta Sans", "sans-serif"],
         card: ["Caveat", "cursive"],
+      },
+      boxShadow: {
+        glow: "0 4px 20px rgba(184, 72, 114, 0.22)",
       },
     },
   },

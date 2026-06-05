@@ -1,4 +1,5 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import { requireAuth } from "../middleware/auth.js";
 import QuestionCard from "../models/QuestionCard.js";
 import Message from "../models/Message.js";
@@ -6,6 +7,15 @@ import { ensureDefaultCardsForUser } from "../utils/defaultCards.js";
 import User from "../models/User.js";
 
 const router = express.Router();
+
+const anonMessageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many messages. Please wait a moment." },
+});
+
 const slugify = (value = "") =>
   value
     .toLowerCase()
@@ -102,11 +112,12 @@ router.get("/link/:linkKey", async (req, res) => {
   res.json(card);
 });
 
-router.post("/link/:linkKey/messages", async (req, res) => {
+router.post("/link/:linkKey/messages", anonMessageLimiter, async (req, res) => {
   const card = await QuestionCard.findOne({ linkKey: req.params.linkKey });
   if (!card) return res.status(404).json({ message: "Card not found" });
   const text = req.body.text?.trim();
   if (!text) return res.status(400).json({ message: "Message is required." });
+  if (text.length > 5000) return res.status(400).json({ message: "Message is too long (max 5000 characters)." });
 
   await Message.create({
     receiver: card.owner,

@@ -1,25 +1,76 @@
-import { GoogleLogin } from "@react-oauth/google";
-import { jwtDecode } from "jwt-decode";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Logo from "../components/Logo";
+import PasswordInput from "../components/PasswordInput";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-import { isGoogleAuthEnabled } from "../utils/googleAuth";
+import { validatePassword, validateUsername } from "../utils/validation";
 
 export default function AuthPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isRegister, setIsRegister] = useState(searchParams.get("mode") === "register");
-  const [form, setForm] = useState({ name: "", username: "", identifier: "", email: "", password: "" });
+  const [form, setForm] = useState({
+    name: "",
+    username: "",
+    identifier: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [error, setError] = useState("");
+  const [usernameHint, setUsernameHint] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { setSession } = useAuth();
   const navigate = useNavigate();
   const heading = useMemo(() => (isRegister ? "Create your Anon account" : "Welcome back to Anon"), [isRegister]);
 
+  useEffect(() => {
+    if (!isRegister || !form.username.trim()) {
+      setUsernameHint("");
+      return undefined;
+    }
+
+    const usernameError = validateUsername(form.username);
+    if (usernameError) {
+      setUsernameHint(usernameError);
+      return undefined;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await api.get("/auth/check-username", {
+          params: { username: form.username.trim().toLowerCase() },
+        });
+        setUsernameHint(data.message);
+      } catch {
+        setUsernameHint("");
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [form.username, isRegister]);
+
   const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (isRegister) {
+      const usernameError = validateUsername(form.username);
+      if (usernameError) {
+        setError(usernameError);
+        return;
+      }
+      const passwordError = validatePassword(form.password);
+      if (passwordError) {
+        setError(passwordError);
+        return;
+      }
+      if (form.password !== form.confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const route = isRegister ? "/auth/register" : "/auth/login";
@@ -35,13 +86,7 @@ export default function AuthPage() {
       setSession(data.token, data.user);
       navigate("/dashboard");
     } catch (err) {
-      const apiMsg = err?.response?.data?.message;
-      const apiDetail = err?.response?.data?.error;
-      setError(
-        apiDetail
-          ? `${apiMsg || "Authentication failed"}. (${apiDetail})`
-          : apiMsg || "Authentication failed. Please try again.",
-      );
+      setError(err?.response?.data?.message || "Authentication failed. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -51,8 +96,11 @@ export default function AuthPage() {
     const nextRegister = mode === "register";
     setIsRegister(nextRegister);
     setError("");
+    setUsernameHint("");
     setSearchParams(nextRegister ? { mode: "register" } : {});
   };
+
+  const usernameAvailable = usernameHint === "Username is available.";
 
   return (
     <main className="relative mx-auto max-w-6xl px-4 py-8 md:py-12 overflow-hidden">
@@ -76,13 +124,13 @@ export default function AuthPage() {
             <h2 className="mt-6 text-3xl font-bold text-ink leading-tight">{heading}</h2>
             <p className="mt-3 text-inkLight leading-relaxed">
               {isRegister
-                ? "Create a username, set a secure password, and start receiving anonymous support."
-                : "Log in with username or email and continue reading your anonymous messages."}
+                ? "Pick a unique username, set a secure password, and start receiving anonymous support."
+                : "Log in with your email or username and password."}
             </p>
             <ul className="mt-6 space-y-2 text-sm text-ink/85">
               <li className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-rose" />
-                Private inbox for every question card
+                Usernames and emails are unique — no duplicates
               </li>
               <li className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-rose" />
@@ -124,14 +172,26 @@ export default function AuthPage() {
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     required
+                    maxLength={80}
                   />
-                  <input
-                    className="input"
-                    placeholder="Username (letters, numbers, underscore)"
-                    value={form.username}
-                    onChange={(e) => setForm({ ...form, username: e.target.value })}
-                    required
-                  />
+                  <div>
+                    <input
+                      className="input"
+                      placeholder="Username (letters, numbers, underscore)"
+                      value={form.username}
+                      onChange={(e) => setForm({ ...form, username: e.target.value })}
+                      required
+                      minLength={3}
+                      maxLength={20}
+                      pattern="[a-zA-Z0-9_]{3,20}"
+                      title="3–20 characters: letters, numbers, underscore"
+                    />
+                    {usernameHint && (
+                      <p className={`mt-1 text-xs ${usernameAvailable ? "text-green-700" : "text-inkLight"}`}>
+                        {usernameHint}
+                      </p>
+                    )}
+                  </div>
                   <input
                     className="input"
                     type="email"
@@ -151,58 +211,29 @@ export default function AuthPage() {
                   required
                 />
               )}
-              <input
-                className="input"
-                placeholder="Password"
-                type="password"
+              <PasswordInput
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
-                minLength={6}
+                minLength={8}
+                placeholder={isRegister ? "Password (8+ chars, letter & number)" : "Password"}
               />
+              {isRegister && (
+                <PasswordInput
+                  value={form.confirmPassword}
+                  onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                  required
+                  minLength={8}
+                  placeholder="Confirm password"
+                />
+              )}
               {error && (
                 <p className="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">{error}</p>
               )}
-              <button
-                disabled={submitting}
-                type="submit"
-                className="w-full rounded-full bg-gradient-to-r from-rose to-roseDark text-white py-3 font-semibold shadow-lg hover:shadow-xl hover:scale-[1.01] transition disabled:opacity-60"
-              >
+              <button disabled={submitting} type="submit" className="btn-primary w-full disabled:opacity-60">
                 {submitting ? "Please wait…" : isRegister ? "Create Account" : "Login"}
               </button>
             </form>
-
-            {isGoogleAuthEnabled() ? (
-              <>
-                <div className="my-5 flex items-center gap-3">
-                  <span className="h-px flex-1 bg-rose/25" />
-                  <span className="text-xs uppercase tracking-wider text-inkLight">or</span>
-                  <span className="h-px flex-1 bg-rose/25" />
-                </div>
-
-                <div className="flex justify-center">
-                  <GoogleLogin
-                    onSuccess={async (credentialResponse) => {
-                      try {
-                        const token = credentialResponse.credential;
-                        const decoded = jwtDecode(token);
-                        const { data } = await api.post("/auth/google", {
-                          email: decoded.email,
-                          name: decoded.name,
-                          googleId: decoded.sub,
-                          photo: decoded.picture,
-                        });
-                        setSession(data.token, data.user);
-                        navigate("/dashboard");
-                      } catch {
-                        setError("Google sign-in failed. Try email login.");
-                      }
-                    }}
-                    onError={() => setError("Google sign-in was cancelled.")}
-                  />
-                </div>
-              </>
-            ) : null}
 
             <p className="mt-5 text-center text-sm text-inkLight">
               {isRegister ? "Already have an account?" : "Need a new account?"}{" "}
